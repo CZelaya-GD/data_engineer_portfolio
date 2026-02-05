@@ -7,8 +7,9 @@ def clean_csv(input_file, output_file):
     df = pd.read_csv(input_file)
     print(f"Raw: {len(df)} rows")
 
-    #Transform: Drop bad data
+    #Transform: Drop bad data + convert age to INT
     df = df.dropna().drop_duplicates()
+    df["age"] = df["age"].astype(int) # 🔑 This fixes float → 30 (not 30.0)
     print(f"Clean: {len(df)} rows")
 
     #Load: Save clean data
