@@ -1,3 +1,4 @@
+# summed total of numbers in a list
 def sum_list(values):
     total = 0
 
@@ -6,6 +7,8 @@ def sum_list(values):
 
     return total 
 
+
+# Created to see if a file exists
 def safe_read_first_line(path): 
     
     try: 

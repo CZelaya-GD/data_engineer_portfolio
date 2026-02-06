@@ -53,3 +53,14 @@ def clean_csv(input_file, output_file):
     cleaned_rows = clean_rows(raw_rows)
     write_csv_rows(output_file, cleaned_rows)
     print(f"Cleaned {len(cleaned_rows)} rows: {output_file}")
+
+
+if __name__ == "__main__":
+    import sys
+    if len(sys.argv) != 3:
+        print("Usage: python csv_cleaner.py <input.csv> <output.csv>")
+        sys.exit(1)
+    clean_csv(sys.argv[1], sys.argv[2])
+
+
+# Run: python csv_cleaner.py data/input/sample.csv data/output/cleaned.csv
