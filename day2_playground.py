@@ -1,5 +1,6 @@
 # summed total of numbers in a list
 def sum_list(values):
+    """summed total of all numbers inside a list"""
     total = 0
 
     for v in values:
@@ -10,7 +11,7 @@ def sum_list(values):
 
 # Created to see if a file exists
 def safe_read_first_line(path): 
-    
+    """Reads the lines inside of a file"""
     try: 
         with open(path, "r", encoding="utf-8") as f:
             return f.readline().strip()
