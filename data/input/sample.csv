@@ -1,0 +1,12 @@
+ Name , Age ,City  
+John Doe  , 30, " New York "
+  
+Jane, ,Boston
+Bob Smith,42, "Miami "
+,25,Chicago
+
+Alice Johnson , 28,Seattle
+ Duplicate , 33, LA
+ Duplicate , 33, LA
+
+Sam,, "Denver  "
