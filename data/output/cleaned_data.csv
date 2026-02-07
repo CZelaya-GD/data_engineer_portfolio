@@ -1,0 +1,7 @@
+id,name,email,score,notes
+1,Alice Johnson,alice@example.com,85.5,Great work!
+2,Bob Smith,,92.0,Needs better focus
+3,Charlie Brown,charlie@fake.com,78,
+4,Diana Prince,diana@wonder.com,99.9,Perfect score
+5,Eve Adams,,0.0,Invalid entry
+6,Frank Fox,frank@fox.com,101,Outlier

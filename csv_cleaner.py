@@ -1,66 +1,61 @@
-import os 
+import csv 
+from typing import List, Dict
 
-# Key Takeaway: Separating ETL into functions makes debugging 10x easier because I can test transform logic without file I/O.
+def extract_csv(input_file: str) -> List[Dict[str, str]]:
 
-def read_csv_rows(input_file): 
-    """Extract: Read raw CSV lines into list of lists."""
-
-    rows = []
     try:
-        with open(input_file, "r", encoding="utf-8") as f:
 
-            for line in f: 
-                stripped = line.strip()
-                if not stripped: # Skip empty lines
-                    continue
-
-                rows.append(stripped.split(","))
-
-        return rows
-    
+        with open(input_file, mode="r", newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            return list(reader)
+        
     except FileNotFoundError:
-        print(f"Input file not found: {input_file}")
-        return []
+        print(f"Error: file not found: {input_file}")
+        return[]
+    
+    except Exception as e:
+        print(f"Unexpected error while extracting CSV: {input_file}")
 
-def clean_rows(rows):
-    """Transform: Strip whitespace from all fields."""
+
+def clean_rows(rows: List[Dict[str, str]]) -> List[Dict[str, str]]:
 
     cleaned = []
     for row in rows: 
-        cleaned.append([col.strip() for col in row])
+        new_row = {k: (v.strip() if isinstance(v, str) else v) for k, v in row.items()}
+
+        # Example rule: drop rows missing a value in the "id" column
+
+        if new_row.get("id"):
+            cleaned.append(new_row)
 
     return cleaned
 
-
-def write_csv_rows(output_file, rows):
-    """Load: Write cleaned rows to output CSV.""" 
-
-    os.makedirs(os.path.dirname(output_file) or ".", exist_ok=True)
+def save_csv(rows: List[Dict[str, str]], output_file: str) -> None: 
     
-    with open(output_file, "w", encoding="utf-8") as f: 
-        for row in rows: 
-            f.write(",".join(row) + "\n")
-
-
-def clean_csv(input_file, output_file):
-    """Main ETL orchestrator."""
-    
-    raw_rows = read_csv_rows(input_file)
-    
-    if not raw_rows:
+    if not rows: 
+        print("No rows to save, \nExiting wihtout writing file")
         return
     
-    cleaned_rows = clean_rows(raw_rows)
-    write_csv_rows(output_file, cleaned_rows)
-    print(f"Cleaned {len(cleaned_rows)} rows: {output_file}")
+    fieldnames = list(rows[0].keys())
+
+    try: 
+        with open(output_file, mode="w", newline="", encoding="utf-8") as f: 
+            writer = csv.DictWriter(f, fieldnames)
+            writer.writeheader()
+            writer.writerows(rows)
+
+        print(f"Saved {len(rows)} rows to {output_file}")
+
+    except Exception as e:
+        print(f"Error while saving CSV: {e}")
+
+def clean_csv(input_file: str, output_file:str) -> None:
+
+    rows = extract_csv(input_file)
+    cleaned = clean_rows(rows)
+    save_csv(cleaned, output_file)
 
 
 if __name__ == "__main__":
-    import sys
-    if len(sys.argv) != 3:
-        print("Usage: python csv_cleaner.py <input.csv> <output.csv>")
-        sys.exit(1)
-    clean_csv(sys.argv[1], sys.argv[2])
-
-
-# Run: python csv_cleaner.py data/input/sample.csv data/output/cleaned.csv
+    # Adjust file names as needed
+    clean_csv("data/input/raw_data.csv", "data/output/cleaned_data.csv")
