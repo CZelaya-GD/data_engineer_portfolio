@@ -1,6 +1,8 @@
 import csv 
 from typing import List, Dict
 
+# for use throughout the code ✅ ❌
+
 def extract_csv(input_file: str) -> List[Dict[str, str]]:
 
     try:
@@ -36,7 +38,14 @@ def save_csv(rows: List[Dict[str, str]], output_file: str) -> None:
         print("No rows to save, \nExiting wihtout writing file")
         return
     
-    fieldnames = list(rows[0].keys())
+    # Production ready - handles shema 
+    fieldnames = list(rows[0].keys()) if rows else []
+
+    # Validate ALL rows have same schema 
+    for i, row in enumerate(rows[1:], 1):
+        if set(row.keys()) != set(fieldnames):
+            print(f"Schema mismatch in row {i+1}")
+            return
 
     try: 
         with open(output_file, mode="w", newline="", encoding="utf-8") as f: 
