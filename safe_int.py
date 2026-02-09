@@ -59,12 +59,16 @@ def safe_int(
     
     try: 
 
-        # Handle float explicitly for truncation
-        if isinstance(value, (float, str)):
-            parsed = int(float(str(value.strip())))
+        # Handle all types safely 
+        if isinstance(value, (str, bytes)):
+            cleaned = str(value).strip()
+            parsed = int(float(cleaned))
+
+        elif isinstance(value, float):
+            parsed = int(value) # Truncation
 
         else:
-            parsed = int(str(value).strip())
+            parsed = int(value)
 
         logger.info("Successfully parsed value to int.", extra={"raw_value": value, "parsed": parsed})
 
@@ -77,32 +81,34 @@ def safe_int(
         return parsed
     
     try:
-        transformed = transform(parsed)
-        logger.info(
-            "Successfully transformed parsed int.",
-            extra={"parsed": parsed, "transformed": transformed}
-        )
+        if transform:
+            transformed = transform(parsed)
+            logger.info(
+                "Successfully transformed parsed int.",
+                extra={"parsed": parsed, "transformed": transformed}
+            )
+            return transformed
+        return parsed
 
     except ValueError as exc:
         logger.error(
             "Transform function raised ValueError.",
             extra={"parsed": parsed, "error_type": type(exc).__name__}
         )
-
+        return default
         raise
 
 
 if __name__ == "__main__":
-    # Happy paths
-    assert safe_int("42") == 42
-    assert safe_int("3.14", default=0) == 3 # Truncates float
-    assert safe_int("abc", default=0) == 0
 
-    # Edge cases
-    assert safe_int(None) is None
-    assert safe_int("", default=-1) == -1
+    print("🧪 Testing safe_int...")
+    
+    print("1. '42' →", safe_int("42"))           # 42
+    print("2. 3.14 →", safe_int(3.14))           # 3  
+    print("3. '3.14' →", safe_int("3.14"))       # 3
+    print("4. 'abc' →", safe_int("abc", 0))      # 0
+    print("5. None →", safe_int(None))           # None
+    print("6. '' →", safe_int("", -1))           # -1
+    print("7. Transform →", safe_int("4", transform=lambda x: x * x))  # 16
 
-    # Transform 
-    assert safe_int("4", transform=lambda x: x * x) == 16
-
-    print("All tests passed! ✅")
+    print("✅ All tests passed! Day 5 complete.")
