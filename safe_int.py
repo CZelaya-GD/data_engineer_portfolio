@@ -58,7 +58,14 @@ def safe_int(
         return default 
     
     try: 
-        parsed = int(str(value).strip())
+
+        # Handle float explicitly for truncation
+        if isinstance(value, (float, str)):
+            parsed = int(float(str(value.strip())))
+
+        else:
+            parsed = int(str(value).strip())
+
         logger.info("Successfully parsed value to int.", extra={"raw_value": value, "parsed": parsed})
 
     except (TypeError, ValueError) as exc:
@@ -83,3 +90,19 @@ def safe_int(
         )
 
         raise
+
+
+if __name__ == "__main__":
+    # Happy paths
+    assert safe_int("42") == 42
+    assert safe_int("3.14", default=0) == 3 # Truncates float
+    assert safe_int("abc", default=0) == 0
+
+    # Edge cases
+    assert safe_int(None) is None
+    assert safe_int("", default=-1) == -1
+
+    # Transform 
+    assert safe_int("4", transform=lambda x: x * x) == 16
+
+    print("All tests passed! ✅")
