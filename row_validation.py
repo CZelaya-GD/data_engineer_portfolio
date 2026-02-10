@@ -203,7 +203,7 @@ def read_and_validate_csv(
     """
 
     if not isinstance(input_path, Path): 
-        message = "input_path must be a pthlib.Path instance."
+        message = "input_path must be a pathlib.Path instance."
         logging.error(message)
         raise TypeError(message)
     
