@@ -138,7 +138,7 @@ def validate_row(
 
     for field in required_non_empty: 
         raw_value = cleaned_row.get(field, "")
-        if raw_value is NOne or raw_value.strip() == "": 
+        if raw_value is None or raw_value.strip() == "": 
             error_msg = f"Required field '{field}' is empty."
             logging.error(error_msg)
             return False, None, error_msg
@@ -154,7 +154,7 @@ def validate_row(
     logging.info("Row validated successfully: %s", cleaned_row)
     return True, cleaned_row, None
 
-def read_vallidate_csv(
+def read_and_validate_csv(
         input_path: Path,  
         required_headers: Iterable[str],
         required_non_empty: Iterable[str], 
@@ -239,7 +239,7 @@ def read_vallidate_csv(
                     valid_rows.append(cleaned_row)
 
                 else: 
-                    error_message = f"Row{index}: {error}"
+                    error_message = f"Row {index}: {error}"
                     errors.append(error_message)
                     logging.error(error_message)
 
@@ -255,8 +255,10 @@ def read_vallidate_csv(
         logging.error(message)
         raise
     logging.info(
-        "Finished validatioin. Valid rows: %d, Errors: %d", 
+        "Finished validation. Valid rows: %d, Errors: %d", 
         len(valid_rows), 
         len(errors),
     )
     return valid_rows, errors 
+
+
