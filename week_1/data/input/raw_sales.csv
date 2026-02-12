@@ -1,0 +1,6 @@
+id,name,price,category
+1,Laptop,999.99,Electronics
+2,Mouse,abc,Accessories
+3,Keyboard,,Electronics
+4,Monitor,599.0,Electronics
+5,Desk,150,Office
