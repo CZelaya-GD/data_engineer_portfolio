@@ -49,7 +49,7 @@ def analyze_top_posts(csv_path: Path) -> Dict[str, pd.DataFrame]:
                      .sum()
                      .reset_index()
                      .assign(rank=lambda x: x["comments"].rank(ascending=False, method="dense"))
-                     ,sort_values('comments', ascending=False)
+                     .sort_values('comments', ascending=False)
                      .head(10))
         
         # EVOLUTION 2: LAG score growth by user (Day 9 window skill)
