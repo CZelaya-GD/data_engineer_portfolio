@@ -54,6 +54,7 @@ consistent_users AS (
     ) gaps 
     GROUP BY user, grp
     HAVING COUNT(*) >= 5
+    GROUP BY user 
 )
 
 -- FINALE: Complete HN dashboard
@@ -82,4 +83,7 @@ SELECT
     user, 
     (score + comments) AS value
 FROM top_posts
-WHERE created_at >= DATE('now', '-30 days'); 
+WHERE created_at >= DATE('now', '-30 days')
+ORDER BY metric,
+event_date DESC, 
+Value DESC; 
