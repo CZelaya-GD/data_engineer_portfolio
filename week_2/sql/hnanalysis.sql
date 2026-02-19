@@ -54,7 +54,6 @@ consistent_users AS (
     ) gaps 
     GROUP BY user, grp
     HAVING COUNT(*) >= 5
-    GROUP BY user 
 )
 
 -- FINALE: Complete HN dashboard
