@@ -78,11 +78,18 @@ def load(df: pd.DataFrame, db_path: str = "hn_posts.db") -> None:
         conn.close()
 
 def run_etl(limit: int = 1000) -> None: 
-    """Full ETL pipeline."""
+    """Full ETL pipeline with validation."""
 
+    if limit < 1 or limit > 5000: 
+        raise ValueError("limit must be 1-5000")
+    
     df_raw = extract_github_hn(limit)
+    if len(df_raw) == 0: 
+        raise ValueError("No data extracted")
+    
     df_clean = transform(df_raw)
     load(df_clean)
+    logger.info(f"✅ ETL COMPLETE: {len(df_clean)} rows")
 
 if __name__ == "__main__": 
     run_etl()
