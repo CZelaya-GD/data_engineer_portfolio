@@ -30,7 +30,7 @@ daily_max AS (
 )
 SELECT 
     'DAILY_LEADER' as metric_type,
-    daily_totals.event-date,
+    daily_totals.event_date,
     daily_totals.user, 
     daily_totals.total_comments
 FROM daily_totals
@@ -38,7 +38,7 @@ JOIN daily_max ON daily_totals.event_date = daily_max.event_date
     AND daily_totals.total_comments = daily_max.max_comments_per_day
 
 ORDER BY daily_totals.event_date DESC 
-LIMIT 20; 
+LIMIT 20
 """
 
 # ============================================================================
@@ -50,7 +50,7 @@ TOP_USERS_LAST_7D = """
 SELECT 
     user, 
     COUNT(*) as total_comments, 
-    ROUND(AVG(score), 2) as average_score
+    ROUND(AVG(score), 2) as average_score,
     COUNT(DISTINCT DATE(created_at)) as active_days
 
 FROM hn_posts

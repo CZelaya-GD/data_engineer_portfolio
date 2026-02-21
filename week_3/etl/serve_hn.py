@@ -1,74 +1,155 @@
 """
-HN Dashboard API Server 
-Purpose: Serve week_3/data/hn_posts.db -> JSON KPIs
-Inputs: ../data/hn_posts.db (existing data!)
-Outputs: /api/dashboard -> LIVE dashboard KPIs
-UsageL cd week_3/etl && python serve_hn.py
+HN Dashboard API Server v3.0
+Purpose: Production 4-endpoints dashboard serving hn_posts.db ETL data
+Week 3 architecture: 
+    data/hn_posts.db
+    etl/queries.py
+    etl/serve_hn.py
+
+Inputs: ../data/hn_posts.db (existing data!) + queries.py
+Outputs: JSON endpoints -> LIVE dashboard KPIs
+Usage:
+    cd week_3/etl
+    python serve_hn.py
+    curl http://127.0.0.1:5000/api/dashboard
 """
 
 from flask import Flask, jsonify
 import sqlite3
 import pandas as pd 
 import logging 
-import os 
+from pathlib import Path 
+from typing import Dict, Any, List 
+from queries import (
+    DAILY_LEADERS, 
+    TOP_USERS_LAST_7D, 
+    TRENDING_TITLES_LAST_7D,
+    ACTIVITY_LAST_24H
+)
 
-logging.basicConfig(level=logging.INFO)
+# ============================================================================
+# Production Logging & Config
+# ============================================================================
+
+logging.basicConfig(
+    level=logging.INFO, 
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
+BASE_DIR = Path(__file__).parent
+DB_PATH = BASE_DIR.parent / 'data' / 'hn_posts.db'
 
-@app.route("/api/dashboard")
-def dashboard_kpis(): 
+# ============================================================================
+# Production DB Connection
+# ============================================================================
+
+def get_database_connection() -> sqlite3.Connection: 
     """
-    Serve hn_posts.db -> JSON dashboard KPIs. 
+    Validate ETL database exists -> production connection. 
+
+    Raises: 
+        FileNotFoundError: If hn_posts.db is missing
     """
-    db_path = os.path.join(os.path.dirname(__file__), '../data/hn_posts.db')
 
-    if not os.path.exists(db_path): 
-        return jsonify({"error": f"Database not found: {db_path}"}), 404
+    if not DB_PATH.exists(): 
+        raise FileNotFoundError(
+            f'ETL database missing. Run: python etl_hn_github.py'
+            f"Expected: {DB_PATH}"
+        )
 
-    conn = sqlite3.connect(db_path)
+    logger.info(f"✅ Connected to ETL database: {DB_PATH}")
+    return sqlite3.connect(DB_PATH)
+
+# ============================================================================
+# DRY Query Executor (Single Responsibility)
+# ============================================================================
+
+def execute_query(query_name: str, sql_query: str) -> Dict[str, Any]: 
+    """
+    Execute SQL -> JSON response (reusable across endpoints). 
+
+    Args: 
+        Query_name: For logging (e.g. "DAILY_LEADERS")
+        sql_query: From queries.py
+
+    Raises: 
+        pd.errors.DatabaseError: SQL syntax/schema issues
+        sqlite3.Error: Connection failures
+    """
+
+    connection = get_database_connection()
 
     try: 
-        query = """
-            -- hnanalysis.sql final query here
-            WITH daily_leaders AS (
-                SELECT 'DAILY_LEADER' as metric,
-                    DATE(created_at) as event_date,
-                    user as user,
-                    COUNT(*) as total_comments
-                FROM hn_posts 
-                WHERE user IS NOT NULL
-                GROUP BY DATE(created_at), user
-                HAVING COUNT(*) = (
-                    SELECT MAX(c.cnt) FROM (
-                        SELECT COUNT(*) cnt 
-                        FROM hn_posts 
-                        WHERE user IS NOT NULL
-                        GROUP BY DATE(created_at), user
-                    ) c
-                )
-            )
-            SELECT * FROM daily_leaders 
-            ORDER BY event_date DESC, total_comments DESC 
-            LIMIT 20
+        dataframe = pd.read_sql_query(sql_query, connection)
+        logger.info(f"✅ {query_name}: Served {len(dataframe)} rows")
 
-        """
+        # Single row -> dict (activity summary)
+        if len(dataframe) == 1: 
+            return jsonify(dataframe.to_dict(orient='records')[0])
 
-        df = pd.read_sql_query(query, conn)
-        logger.info(f"✅ Served {len(df)} KPI records from {db_path}")
+        # Multi-row -> list of dicts
+        return jsonify(dataframe.to_dict(orient='records'))
 
-        return jsonify(df.to_dict(orient="records"))
+    except (pd.errors.DatabaseError, sqlite3.Error) as error:
+        logger.error(f"❌ {query_name} failed: {error}")
+        return jsonify({"error": f"{query_name} query failed: {str(error)}"}), 500
 
-    except Exception as e: 
-        logger.error(f"API error: {e}")
-        return jsonify({"error": str(e)}), 500
-    
     finally: 
-        conn.close()
+        connection.close()
+
+# ============================================================================
+# HN Dashboard API Endpoints
+# ============================================================================
+
+@app.route("/api/dashboard")
+def get_daily_leaders() -> Dict[str, Any]: 
+    """Daily top commenters (week 3 flagship). """
+    return execute_query("DAILY_LEADERS", DAILY_LEADERS)
+
+@app.route("/api/users")
+def get_top_users() -> Dict[str, Any]: 
+    """Top users by engagement (last 7 days)"""
+    return execute_query("TOP_USERS_LAST_7D", TOP_USERS_LAST_7D)
+
+@app.route("/api/trending")
+def get_trending_topics() -> Dict[str, Any]: 
+    """Most discussed HN titles (last 7 days)."""
+    return execute_query("TRENDING_TITLES_LAST_7D", TRENDING_TITLES_LAST_7D)
+
+@app.route("/api/activity")
+def get_recent_activity() -> Dict[str, Any]: 
+    """24hr pipeline health summary."""
+    return execute_query("ACTIVITY_LAST_24H", ACTIVITY_LAST_24H)
+
+@app.route("/health")
+def health_check() -> Dict[str, Any]: 
+    """Production health endpoints."""
+    try: 
+        connection = get_database_connection()
+        connection.execute("SELECT 1")
+        connection.close()
+        return jsonify({"status": "healthy", "database": str(DB_PATH)})
+
+    except Exception as error: 
+        logger.error(f"Health check failed: {error}")
+        return jsonify({"status": unhealthy}), 503
+
+# ============================================================================
+# Production Server
+# ============================================================================
 
 if __name__ == "__main__": 
-    
-    logger.info("🚀 HN Dashboard API starting on http://127.0.0.1:5000")
-    logger.info("📊 Serving Day 15 hn_posts.db → LIVE JSON dashboard!")
-    app.run(debug=False, port=5000)   # Production: debug=False
+    logger.info("=" * 60)
+    logger.info("🚀 HN DASHBOARD API v3.0")
+    logger.info("📊 Database: {DB_PATH}")
+    logger.info("🔗Endpoints: ")
+    logger.info(" GET /api/dashboard   -> Daily leaders")
+    logger.info(" GET /api/users       -> Top users (7D)")
+    logger.info(" GET /api/trending     -> Hot topics (7D)")
+    logger.info(" GET /api/activity     -> 24hr summary")
+    logger.info(" GET /health     -> Production health")
+    logger.info("=" * 60)
+    app.run(host="127.0.0.1", debug=False, port=5000)
