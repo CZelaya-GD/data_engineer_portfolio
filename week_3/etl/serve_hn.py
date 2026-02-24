@@ -134,7 +134,7 @@ def execute_query(query_name: str, sql_query: str) -> Any:
 
         if row_count == 0: 
             # Explicit, non-error empty response
-            return jsonify({"records": [], 'row_count': 0, 'query': query_name)})
+            return jsonify({"records": [], 'row_count': 0, 'query': query_name})
 
         # Single row -> dict (activity summary)
         if row_count == 1: 
@@ -201,8 +201,8 @@ def health_check() -> Dict[str, Any]:
 if __name__ == "__main__": 
     logger.info("=" * 60)
     logger.info("🚀 HN DASHBOARD API v3.0")
-    logger.info("📊 Database: {DB_PATH}")
-    logger.info("🔑 http://127.0.0.1:5000")
+    logger.info(f"📊 Database: {DB_PATH}")
+    logger.info("🔑 localhost")
     logger.info("🔗Endpoints: ")
     logger.info(" GET /api/dashboard   -> Daily leaders")
     logger.info(" GET /api/users       -> Top users (7D)")
@@ -210,4 +210,4 @@ if __name__ == "__main__":
     logger.info(" GET /api/activity     -> 24hr summary")
     logger.info(" GET /health     -> Production health")
     logger.info("=" * 60)
-    app.run(host="127.0.0.1", debug=False, port=5000)
+    app.run(host="0.0.0.0", debug=False, port=5000)

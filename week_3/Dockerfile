@@ -1,17 +1,17 @@
 # Multi-stage: ETL build -> Production API
-
 FROM python:3.12-slim-bookworm AS etl-builder
 
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+
 # Production API stage
 FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 COPY --from=etl-builder /usr/local/lib/python3.12 /usr/local/lib/python3.12
-COPY --from=etl_builder /usr/local/bin /usr/local/bin
+COPY --from=etl-builder /usr/local/bin /usr/local/bin
 
 # Copy your HN API code
 COPY . . 
