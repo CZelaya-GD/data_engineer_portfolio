@@ -21,7 +21,7 @@ docker compose up -d
 
 curl localhost:5000/api/users | jq '.'
 
-# → github-actions[bot]: 59 comments, 61% HN dominance
+# Insight → github-actions[bot]: 59 comments, 61% HN dominance
 ```
 📊 Skills Matrix
 
