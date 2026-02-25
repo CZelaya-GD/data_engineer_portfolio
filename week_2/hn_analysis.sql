@@ -56,7 +56,7 @@ consistent_users AS (
     HAVING COUNT(*) >= 5
 )
 
--- FINALE: Complete HN dashboard
+-- 🎯 PRODUCTION DASHBOARD: 3 HN KPIs
 SELECT 
     'DAILY_LEADER' AS metric, 
     event_date, 
