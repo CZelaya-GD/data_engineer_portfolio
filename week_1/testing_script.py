@@ -1,5 +1,5 @@
 from pathlib import Path 
-from day6_row_validation import read_and_validate_csv
+from week_1.row_validation import read_and_validate_csv
 
 valid_rows, errors = read_and_validate_csv(
     Path("data/input/test_input.csv"), 

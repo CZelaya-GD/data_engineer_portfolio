@@ -32,6 +32,6 @@ curl localhost:5000/api/users | jq '.'
 
 ## 🎓 100-Day Mastery (Phase 1 ✅)
 
-- Days 1-21: Python → SQL → ETL → Docker Production
-- Days 22-49: Airflow orchestration (next)
-- Days 50-100: GCP deployment 
+- ✅ Days 1-21: Python → SQL → ETL → Docker Production
+- ⏳ Days 22-49: Airflow orchestration (next)
+- ⏳ Days 50-100: GCP deployment 
