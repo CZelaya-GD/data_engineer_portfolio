@@ -9,7 +9,7 @@ services:
       - "5000:5000"      # <- Host: Container port
     
     volumes: 
-      - ./data:/app/data   # Persist hn_posts.db
+      - ./data:/app/data:ro   # Persist hn_posts.db
 
     environment: 
       - DATABASE_NAME=hn_posts   # Configurable
