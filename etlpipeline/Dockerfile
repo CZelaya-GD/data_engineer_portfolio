@@ -10,13 +10,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 FROM python:3.12-slim-bookworm
 
 WORKDIR /app
-COPY --from=etl-builder /root/.local /root/.local 
-ENV PATH= /root/.local/bin:$PATH
+COPY --from=etl-builder /usr/local /usr/local 
+
 
 # Copy app (layer cache optimized)
 COPY etl/ ./etl/
 COPY data/ ./data/ 
-COPY queries.py .
 
 # Security: Non-root user 
 RUN useradd -m appuser && \
