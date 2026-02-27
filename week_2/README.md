@@ -1,12 +1,18 @@
-### Hacker News Analytics (hnanlysis.sql)
+# 🚀 Week 2: HN SQL Analytics Dashboard
 
-- Input: Raw 'hn_posts' table (Hacker News dump)
+**Day 14 Deliverable** → **Feeds etlpipeline Docker API** • **112K rows**
 
-- Output: Single dashboard query with: 
-    - Daily top commenters (engagement leaders)
-    - Users active 5+ consecutive days (power users)
-    - Top posts in the last 3- days (high engagement)
+## 🎯 Production HN Dashboard (3 KPIs)
 
-- SQL feature: CTEs, window functions (RANK. ROW_NUMBER), UNION ALL. 
+| Metric | SQL Pattern | Scale |
+|--------|-------------|-------|
+| `DAILY_LEADER` | **RANK() window** | Daily top users |
+| `CONSISTENT_USER` | **ROW_NUMBER() gaps** | 5+ day streaks |
+| `TOP_POSTS_30D` | **CTEs + filtering** | Recent engagement |
 
-- Usage: Run 'hnanalysis.sql' in SQLite or any warehouse and connect to BI 
+## 🚀 Run Dashboard
+```bash
+sqlite3 ../etlpipeline/data/hn_posts.db < hnanalysis.sql > hn_kpis.csv
+head hn_kpis.csv
+# DAILY_LEADER,2026-02-25,github-actions[bot],59
+```

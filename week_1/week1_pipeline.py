@@ -14,9 +14,9 @@ import csv
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-from day6_row_validation import validate_headers, read_and_validate_csv
+from week_1.row_validation import validate_headers, read_and_validate_csv
 
-from day5_safe_int import safe_int
+from week_1.safe_integer_converter import safe_int
 
 def week1_master_pipeline(
         raw_csv: str, 
@@ -52,3 +52,4 @@ def week1_master_pipeline(
             "data/input/raw_sales.csv",
             "data/output/week1_cleaned.csv"
         )
+        
