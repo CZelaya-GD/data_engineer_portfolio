@@ -23,6 +23,7 @@ import logging
 import sys
 from pathlib import Path 
 from typing import List 
+from schema import to_hn_schema
 
 import requests 
 import pandas as pd 
@@ -122,8 +123,10 @@ def save_warehouse(df: pd.DataFrame, warehouse_path: Path) -> None:
     conn = sqlite3.connect(warehouse_path)
 
     try: 
-        # Replace existing table (idempotent)
-        df.to_sql('hn_posts', 
+        df_clean = to_hn_schema(df)   # HN API -> Production Schema
+
+        # Replace existing table 
+        df_clean.to_sql('hn_posts', 
                   conn,
                   if_exists="replace",
                   index=False)

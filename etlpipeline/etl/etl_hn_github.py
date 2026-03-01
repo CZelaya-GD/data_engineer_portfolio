@@ -14,6 +14,7 @@ import sqlite3
 from pathlib import Path 
 from typing import List, Dict 
 import logging 
+# from schema import validate_schema
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -62,6 +63,8 @@ def transform(df: pd.DataFrame) -> pd.DataFrame:
     if df["score"].min() < 0: 
         raise ValueError("Invalid scores after transform")
     
+    # validate_schema(df)
+
     logger.info(f"Transformed {len(df)} rows")
     return df
 
