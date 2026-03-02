@@ -1,24 +1,53 @@
-version: '3.8'
-
 services: 
-  hn_dashboard: 
+  etl: 
+    image: 
+      etlpipeline-hn_dashboard
 
-    build: .      # <- Build from Dockerfile
+    volumes: 
+      - ./data:/app/data
+
+    command: 
+      python etl/etl_runner.py --days-back 30
+
+    profiles: 
+      ["etl"]   # Run only: docker compose --profile etl up etl
+
+  api: 
+    image: 
+      etlpipeline-hn_dashboard
+
+    volumes: 
+      - ./data:/app/data
 
     ports: 
-      - "5000:5000"      # <- Host: Container port
-    
-    volumes: 
-      - ./data:/app/data:ro   # Persist hn_posts.db
+      ['5000:5000']
 
-    environment: 
-      - DATABASE_NAME=hn_posts   # Configurable
+    command: 
+      python etl/serve_hn.py 
 
-    restart: unless-stopped     # <- Auto-restart on crash
+    profiles: 
+      ["api"]   # Run only: docker compose --profile api up api
 
     healthcheck: 
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s  
+      start_period: 30s
+
+  postgres: 
+    image: 
+      postgres:16
+
+    environment: 
+      POSTGRES_DB: hn_warehouse
+      POSTGRES_PASSWORD: password
+
+    volumes: 
+      - pgdata:/var/lib/postgresql/data
+
+    profiles: 
+      ["postgres"]
+
+volumes: 
+  pgdata: 
