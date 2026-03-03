@@ -21,6 +21,7 @@ Usage:
 import argparse
 import logging 
 import sys
+import os
 from pathlib import Path 
 from typing import List 
 from schema import to_hn_schema
@@ -41,6 +42,16 @@ def validate_inputs(days_back: int) -> None:
     """Validate CLI arguments per production standards."""
     if days_back < 1 or days_back > 365: 
         raise ValueError(f"days_back must be 1-365, got {days_back}")
+
+# Testing Previewing 
+def get_db_url() -> str:
+    db_url = os.getenv("DATABASE_URL")
+
+    if db_url: 
+        return db_url
+    
+    db_path = Path("/app/data/hn_posts.db")
+    return f"sqlite:///{db_path}"
     
 def fetch_top_story_ids(max_stories: int = 500) -> List[int]: 
     """

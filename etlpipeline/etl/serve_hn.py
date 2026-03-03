@@ -20,6 +20,8 @@ import pandas as pd
 import logging 
 from pathlib import Path 
 from typing import Dict, Any, Tuple
+import os 
+
 
 from queries import (
     DAILY_LEADERS, 
@@ -43,6 +45,19 @@ app = Flask(__name__)
 BASE_DIR = Path(__file__).parent
 DATABASE_NAME = "hn_posts"
 DB_PATH = BASE_DIR.parent / 'data' / f'{DATABASE_NAME}.db'
+
+# ============================================================================
+# Production DB URL (Design step)
+# ============================================================================
+
+def get_d_url() -> str: 
+    db_url = os.getenv("DATABASE_URL")
+
+    if db_url: 
+        return db_url
+
+    db_path = Path("/app/data/hn_posts.db")
+    return f"sqlite:///{db_path}"
 
 # ============================================================================
 # Production DB Connection
