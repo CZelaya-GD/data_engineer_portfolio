@@ -43,7 +43,7 @@ def validate_inputs(days_back: int) -> None:
     if days_back < 1 or days_back > 365: 
         raise ValueError(f"days_back must be 1-365, got {days_back}")
 
-# Testing Previewing 
+# Previewing 
 def get_db_url() -> str:
     db_url = os.getenv("DATABASE_URL")
 
