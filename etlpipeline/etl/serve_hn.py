@@ -20,6 +20,8 @@ import pandas as pd
 import logging 
 from pathlib import Path 
 from typing import Dict, Any, Tuple
+from db_config import get_db_url, get_engine
+from sqlalchemy import create_engine, text
 import os 
 
 
@@ -45,6 +47,7 @@ app = Flask(__name__)
 BASE_DIR = Path(__file__).parent
 DATABASE_NAME = "hn_posts"
 DB_PATH = BASE_DIR.parent / 'data' / f'{DATABASE_NAME}.db'
+
 
 # ============================================================================
 # Production DB URL (Design step)
@@ -191,17 +194,18 @@ def get_recent_activity() -> Any:
 
 @app.route("/health")
 def health_check() -> Dict[str, Any]: 
-    """Health-check endpoint, including basic schema validation."""
+    """Health-check endpoint, including basic schema validation. Postgres/SQLite support"""
     try: 
-        connection = get_database_connection()
-        is_valid, message = validate_table_schema(connection)
-        connection.close()
+        engine = get_engine
+        with engine.connect() as conn:
+
+            is_valid, message = validate_table_schema(conn)
 
         status = "healthy" if is_valid else "degraded"
         code = 200 if is_valid else 500
 
         return jsonify({"status": status, 
-                        "database": str(DB_PATH), 
+                        "database": get_db_url(), 
                         "details": message,}
                         , code)
 

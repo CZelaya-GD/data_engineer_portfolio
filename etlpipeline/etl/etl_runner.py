@@ -25,6 +25,8 @@ import os
 from pathlib import Path 
 from typing import List 
 from schema import to_hn_schema
+from db_config import get_db_url, get_engine
+from sqlalchemy import create_engine
 
 import requests 
 import pandas as pd 
@@ -42,17 +44,7 @@ def validate_inputs(days_back: int) -> None:
     """Validate CLI arguments per production standards."""
     if days_back < 1 or days_back > 365: 
         raise ValueError(f"days_back must be 1-365, got {days_back}")
-
-# Previewing 
-def get_db_url() -> str:
-    db_url = os.getenv("DATABASE_URL")
-
-    if db_url: 
-        return db_url
-    
-    db_path = Path("/app/data/hn_posts.db")
-    return f"sqlite:///{db_path}"
-    
+        
 def fetch_top_story_ids(max_stories: int = 500) -> List[int]: 
     """
     Step 1: 
@@ -118,11 +110,11 @@ def fetch_recent_stories(story_ids: List[int], days_back: int) -> List[dict]:
 
     return recent_stories 
 
-def save_warehouse(df: pd.DataFrame, warehouse_path: Path) -> None: 
+def save_warehouse(df: pd.DataFrame) -> None: 
     """Step 3: 
-            Save cleaned DataFrame -> SQlite warehouse."""
+            Save cleaned DataFrame -> warehouse (SQLite/Postgres)."""
     
-    logger.info(f"Saving {len(df)} rows to {warehouse_path}...")
+    logger.info(f"Saving {len(df)} rows...")
 
     # ✅ CRITICAL: Convert list columns to JSON strings (SQL caan't store lists)
     for col in df.columns: 
@@ -131,25 +123,26 @@ def save_warehouse(df: pd.DataFrame, warehouse_path: Path) -> None:
             if df[col].apply(lambda x: isinstance(x, list)).any():
                 df[col] = df[col].apply(lambda x: str(x) if isinstance(x, list) else x)
 
-    conn = sqlite3.connect(warehouse_path)
+
+    engine = get_engine()
 
     try: 
         df_clean = to_hn_schema(df)   # HN API -> Production Schema
 
         # Replace existing table 
         df_clean.to_sql('hn_posts', 
-                  conn,
+                  engine,
                   if_exists="replace",
                   index=False)
         
         logger.info(f"✅ Warehouse saved: {len(df)} rows")
 
-    except sqlite3.Error as e: 
-        logger.error(f"SQLite error: {e}")
+    except Exception as e: 
+        logger.error(f"Warehouse error: {e}")
         raise
 
     finally: 
-        conn.close()
+        engine.dispose()
 
 def main(days_back: int = 30) -> None:
     """Production HN ETL Pipeline orchestrator."""
