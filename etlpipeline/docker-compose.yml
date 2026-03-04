@@ -12,6 +12,10 @@ services:
     profiles: 
       ["etl"]   # Run only: docker compose --profile etl up etl
 
+    environment: 
+      - DATABASE_URL=${DATABASE_URL}
+
+
   api: 
     image: 
       etlpipeline-hn_dashboard
@@ -40,14 +44,18 @@ services:
       postgres:16
 
     environment: 
-      POSTGRES_DB: hn_warehouse
-      POSTGRES_PASSWORD: password
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5432:5432"
 
     volumes: 
-      - pgdata:/var/lib/postgresql/data
+      - postgres_data:/var/lib/postgresql/data
 
     profiles: 
       ["postgres"]
 
 volumes: 
-  pgdata: 
+  postgres_data: 
