@@ -1,4 +1,28 @@
 services: 
+  airlflow-webserver: 
+    image: 
+      apache/airflow:2.9.3
+
+    profiles: 
+      ["airflow"]
+
+    environment: 
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      DATABASE_URL: ${DATABASE_URL}
+
+    volumes: 
+      - ./etl:/opt/airflow/etl
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow-logs:opt/airflow.logs
+
+    ports: 
+      ["8080:8080"]
+
+    depends_on: 
+      [postgres]
+
+
   etl: 
     image: 
       etlpipeline-hn_dashboard
