@@ -40,6 +40,7 @@ from typing import Any, Dict, List
 from airflow import DAG 
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.operators.python import PythonOperator
+from airflow.operators.http import SimpleHttpOperator
 
 import pandas as pd
 
@@ -194,10 +195,12 @@ with DAG(
     max_active_runs=1, 
     tags=["etl", "hn", "xcom", "split", "production"], 
 ) as dag: 
-    extract_task = PythonOperator(
-        task_id="extract_hn", 
-        python_callable=_extract_hn, 
-        provide_context=True,
+    extract_task = SimpleHttpOperator(
+        task_id="extract_topstories", 
+        endpoint="https://hacker-news.firebase.io.com/v0/topstories.json",
+        method="GET", 
+        response_filter=lambda r: r.json()[:500], 
+        do_xcom_push=True,
     )
 
     transform_task = PythonOperator(
