@@ -41,6 +41,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSkipException
 from airflow.operators.python import PythonOperator
 from airflow.operators.http import SimpleHttpOperator
+from airflow.operators.bash import BashOperator
 
 import pandas as pd
 
@@ -215,5 +216,16 @@ with DAG(
         provide_context=True,
     )
 
+    upload_to_gcs = BashOperator(
+        task_id="upload_to_gcs", 
+        bash_command="""
+        gsutil cp /app/data/hn_posts.csv gs://{{ var.value.gcs_bucket }}/daily/
+        bq load --source_format=CSV \
+            data_engineer_portfolio:hn_warehouse.hn_posts \
+            gs://{{ var.value.gcs_bucket }}/daily/hn_posts.csv \
+            id:INTEGER,title:STRING,user:STRING,score:INTEGER,...
+        """
+    )
+
     # Task dependencies
-    extract_task >> transform_task >> load_task
+    extract_task >> transform_task >> load_task >> upload_to_gcs
