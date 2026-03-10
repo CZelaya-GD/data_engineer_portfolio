@@ -216,16 +216,12 @@ with DAG(
         provide_context=True,
     )
 
-    upload_to_gcs = BashOperator(
+    export_to_bigquery = BashOperator(
         task_id="upload_to_gcs", 
         bash_command="""
-        gsutil cp /app/data/hn_posts.csv gs://{{ var.value.gcs_bucket }}/daily/
-        bq load --source_format=CSV \
-            data_engineer_portfolio:hn_warehouse.hn_posts \
-            gs://{{ var.value.gcs_bucket }}/daily/hn_posts.csv \
-            id:INTEGER,title:STRING,user:STRING,score:INTEGER,...
+        python -m etl.bigquery_sync
         """
     )
 
     # Task dependencies
-    extract_task >> transform_task >> load_task >> upload_to_gcs
+    extract_task >> transform_task >> load_task >> export_to_bigquery

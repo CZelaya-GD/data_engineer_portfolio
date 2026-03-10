@@ -11,6 +11,7 @@ FROM python:3.12-slim-bookworm
 
 WORKDIR /app
 COPY --from=etl-builder /usr/local /usr/local 
+ENV PATH=/root/.local/bin:$PATH
 
 
 # Copy app (layer cache optimized)

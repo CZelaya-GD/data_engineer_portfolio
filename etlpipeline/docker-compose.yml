@@ -24,13 +24,16 @@ services:
 
 
   etl: 
+
+    build: .
+    
     image: 
       etlpipeline-hn_dashboard
 
     volumes: 
       - ./data:/app/data
 
-    command: 
+    command: >
       python etl/etl_runner.py --days-back 30
 
     profiles: 
@@ -38,6 +41,10 @@ services:
 
     environment: 
       - DATABASE_URL=${DATABASE_URL}
+
+    depends_on: 
+      postgres: 
+        condition: service_healthy
 
 
   api: 
