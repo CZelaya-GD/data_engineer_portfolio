@@ -5,3 +5,4 @@ venv/
 lib/
 site-packages/
 EOF
+.env
