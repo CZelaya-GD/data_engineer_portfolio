@@ -1,4 +1,4 @@
-# 🚀 HN GitHub Issues Analytics Pipeline (Week 3 Production Demo)
+# 🚀 HN GitHub Issues Analytics Pipeline (Week 3 Production Demo) 
 
 ## 🎯 What This Pipeline Does
 ETL + API serving **real-time analytics** on **112K GitHub issues** posted to Hacker News (Feb 2026 data).
