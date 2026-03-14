@@ -3,6 +3,7 @@
 ## 🎯 What This Pipeline Does
 ETL + API serving **real-time analytics** on **112K GitHub issues** posted to Hacker News (Feb 2026 data).
 
+
 **Business Value**: 
 - **ETL**: Scrapes 1000+ HN GitHub issues daily
 - **API**: Real-time analytics (`localhost:5000/api/users`)
