@@ -65,8 +65,8 @@ def _validate_days_back(days_back: int) -> None:
     if not isinstance(days_back, int): 
         raise AirflowSkipException("days_back must be an integer.")
     
-    if days_back < 1:
-        raise AirflowSkipException("days_back must be >= 1.")
+    if days_back < 1 or days_back > 365:
+        raise AirflowSkipException("days_back must be 1-365.")
     
 def _run_hn_etl(**context: Dict[str, Any]) -> None: 
     """
@@ -89,11 +89,11 @@ def _run_hn_etl(**context: Dict[str, Any]) -> None:
     """
     try: 
         # Resolve days_back: DAG param -> dag_run.conf override -> default. 
-        dag: DAG = context["dag"]
-        default_days_back = dag.default_args.get("days_back", 30)
-        override_conf = context.get("dag_run").conf if context.get("dag_run") else {}
+        params = context["params"]
+        dag_runs_conf = context.get("dag_run").conf if context.get("dag_run") else {}
 
-        days_back = override_conf.get("days_back", default_days_back)
+        days_back = dag_runs_conf.get("days_back", params.get("days_back", 30))
+        days_back = int(days_back)
         _validate_days_back(days_back)
 
         db_url = get_db_url()
@@ -101,11 +101,10 @@ def _run_hn_etl(**context: Dict[str, Any]) -> None:
                     days_back,
                     db_url)
         
-        df = run_etl(days_back=days_back)
-        row_count = len(df)
+        run_etl(days_back)
 
-        logger.info("HN ETL completed successfully. rows=%s, db_url=%s",
-                    row_count, 
+        logger.info("HN ETL completed successfully. days_back=%s, db_url=%s",
+                    days_back, 
                     db_url)
         
     except AirflowSkipException: 
@@ -137,15 +136,14 @@ default_args: Dict[str, Any] = {
     "depends_on_past": False, 
     "retries": 2, 
     "retry_delay": timedelta(minutes=5), 
-    # Default wondow: can be changed to match Docker run
-    "days_back": 30
 }
 
 with DAG(
     dag_id="hn_etl_daily", 
     description="Daily Hacker News Top Stories ETL into SQLite/Postgres.",
     default_args=default_args,
-    start_date=datetime(2026,3,1),
+    params={"days_back": 30}
+    start_date=datetime(2026,3,25),
     schedule_interval="@daily",
     catchup=False,
     max_active_runs=1,
