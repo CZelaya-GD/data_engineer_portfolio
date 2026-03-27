@@ -1,24 +1,109 @@
-version: '3.8'
-
 services: 
-  hn_dashboard: 
+  airlflow-webserver: 
+    image: 
+      apache/airflow:2.9.3
 
-    build: .      # <- Build from Dockerfile
-
-    ports: 
-      - "5000:5000"      # <- Host: Container port
-    
-    volumes: 
-      - ./data:/app/data:ro   # Persist hn_posts.db
+    profiles: 
+      ["airflow"]
 
     environment: 
-      - DATABASE_NAME=hn_posts   # Configurable
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+      DATABASE_URL: ${DATABASE_URL}
 
-    restart: unless-stopped     # <- Auto-restart on crash
+    volumes: 
+      - ./etl:/opt/airflow/etl
+      - ./airflow/dags:/opt/airflow/dags
+      - airflow-logs:/opt/airflow/logs
+
+    ports: 
+      ["8080:8080"]
+
+    depends_on: 
+      [postgres]
+
+    command: 
+      bash -c "
+      airflow db init && 
+      airflow users create --username admin --firstname Admin --lastname user --role Admin --email admin@example.com --password admin &&
+      airflow webserver 
+      "
+
+
+  etl: 
+
+    build: .
+    
+    image: 
+      etlpipeline-hn_dashboard
+
+    volumes: 
+      - ./data:/app/data
+
+    command: >
+      python etl/etl_runner.py --days-back 30
+
+    profiles: 
+      ["etl"]   # Run only: docker compose --profile etl up etl
+
+    environment: 
+      - DATABASE_URL=${DATABASE_URL}
+
+    depends_on: 
+      postgres: 
+        condition: service_healthy
+
+
+  api: 
+    image: 
+      etlpipeline-hn_dashboard
+
+    volumes: 
+      - ./data:/app/data
+
+    ports: 
+      ['5000:5000']
+
+    command: 
+      python etl/serve_hn.py 
+
+    profiles: 
+      ["api"]   # Run only: docker compose --profile api up api
 
     healthcheck: 
       test: ["CMD", "curl", "-f", "http://localhost:5000/health"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 30s  
+      start_period: 30s
+
+  postgres: 
+    image: 
+      postgres:16
+
+    environment: 
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+
+    ports:
+      - "5432:5432"
+
+    volumes: 
+      - postgres_data:/var/lib/postgresql/data
+
+    profiles: 
+      ["postgres"]
+
+    healthcheck: 
+      test: 
+        ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+volumes: 
+  postgres_data: 
+  airflow-logs: 
