@@ -4,7 +4,7 @@ Unified CLI for all ETL (local + cloud).
 
 import click 
 from etl.etl_runner import run_etl, save_warehouse
-from etl.bigquery_sync import sync_hn_posts_to_bigquery
+from etlpipeline.gcp.bigquery_sync import sync_hn_posts_to_bigquery
 
 @click.command()
 @click.option('--days-back', default=30, type=int)
