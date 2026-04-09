@@ -30,7 +30,7 @@ from etl.etl_runner import (fetch_top_story_ids,
                             fetch_recent_stories,
                             save_warehouse,
                             validate_inputs)
-from etl.db_config import get_db_url
+from etlpipeline.config.db_config import get_db_url
 from etl.schema import to_hn_schema
 
 import logging 

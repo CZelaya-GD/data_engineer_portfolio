@@ -38,7 +38,7 @@ from airflow.sensors.http import SimpleHttpSensor
 
 from etl.etl_runner import fetch_recent_stories, validate_inputs
 from etl.schema import to_hn_schema
-from etl.db_config import get_db_url
+from etlpipeline.config.db_config import get_db_url
 import pandas as pd 
 
 logger = logging.getLogger(__name__)

@@ -14,7 +14,7 @@ Output:
 import logging 
 from pathlib import Path 
 import pandas as pd 
-from etl.db_config import get_engine
+from etlpipeline.config.db_config import get_engine
 import os 
 
 logger = logging.getLogger(__name__)

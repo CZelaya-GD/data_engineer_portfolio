@@ -23,7 +23,7 @@ import logging
 import pandas as pd 
 from google.cloud import bigquery 
 
-from etl.db_config import get_engine 
+from etlpipeline.config.db_config import get_engine 
 
 logger = logging.getLogger(__name__)
 

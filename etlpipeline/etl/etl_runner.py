@@ -1,197 +1,182 @@
+#!/usr/bin/env python3
 """
-etl_runner.py - Production HN Top Stories ETL Pipeline
+etl_runner.py - Production HN Top Stories ETL Pipeline.
 
-Purpose: 
-    Fetch HN topstories.json -> filter recent posts -> SQLite warehouse 
+Purpose:
+    Fetch HN topstories.json, filter recent posts, and load them into SQLite.
 
-Inputs: 
-    --days-back INT: Days of data to keep (default=30)
+Inputs:
+    --days-back INT: Days of data to keep (default=30).
 
-Output:  
-    /app/data/hn_posts.db (~112 rows for 30 days)
+Output:
+    /app/data/hn_posts.db (or DATABASE_URL target when configured).
 
-Raises: 
-    requests.RequestException, sqlite3.Error, ValueError
+Raises:
+    ValueError, requests.RequestException, sqlite3.Error.
 
-Usage: 
-    python etl_runner.py --days-back 30 
-    # Expected: 112 rows, 30 seconds runtime
+Usage:
+    python etl_runner.py --days-back 30
 """
+
+from __future__ import annotations
 
 import argparse
-import logging 
+import json
+import logging
 import sys
-import os
-from pathlib import Path 
-from typing import List 
-from schema import to_hn_schema
-from db_config import get_db_url, get_engine
-from sqlalchemy import create_engine
+from pathlib import Path
+from typing import Any, List
 
-import requests 
-import pandas as pd 
+import pandas as pd
+import requests
 import sqlite3
 
-# Production logging setup 
-logging.basicConfig(
-    level=logging.INFO, 
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
-)
+from etl.schema import to_hn_schema
+from etlpipeline.config.db_config import get_engine, get_db_url
 
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def validate_inputs(days_back: int) -> None: 
+HN_TOPSTORIES_URL = "https://hacker-news.firebaseio.com/v0/topstories.json"
+HN_ITEM_URL = "https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
+DEFAULT_WAREHOUSE_PATH = Path('/app/data/hn_posts.db')
+
+
+def validate_inputs(days_back: int) -> None:
     """Validate CLI arguments per production standards."""
-    if days_back < 1 or days_back > 365: 
+    if not isinstance(days_back, int):
+        raise ValueError(f"days_back must be an int, got {type(days_back).__name__}")
+    if days_back < 1 or days_back > 365:
         raise ValueError(f"days_back must be 1-365, got {days_back}")
-        
-def fetch_top_story_ids(max_stories: int = 500) -> List[int]: 
-    """
-    Step 1: 
-        Fetch top 500 story IDs from HN API. 
 
-    HN Pattern: 
-        topstories.json -> [41123456, 41123455, ...]
-    """
-    logger.info(f"Fetching top {max_stories} story IDs...")
 
-    url = "https://hacker-news.firebaseio.com/v0/topstories.json"
+def fetch_top_story_ids(max_stories: int = 500) -> List[int]:
+    """Fetch top HN story IDs from the public API."""
+    if not isinstance(max_stories, int) or max_stories < 1:
+        raise ValueError(f"max_stories must be a positive int, got {max_stories}")
 
-    try: 
-        response = requests.get(url, timeout=10)
+    logger.info("Fetching top %s story IDs...", max_stories)
+    try:
+        response = requests.get(HN_TOPSTORIES_URL, timeout=10)
         response.raise_for_status()
         story_ids = response.json()
-        return story_ids[:max_stories]   # Top 500 only
-    
-    except requests.RequestException as e: 
-        logger.error(f"Failed to fetch topstories: {e}")
+        if not isinstance(story_ids, list):
+            raise ValueError("topstories response was not a list")
+        return [int(story_id) for story_id in story_ids[:max_stories]]
+    except requests.RequestException:
+        logger.error("Failed to fetch topstories", exc_info=True)
+        raise
+    except ValueError:
+        logger.error("Invalid topstories payload", exc_info=True)
         raise
 
-def fetch_recent_stories(story_ids: List[int], days_back: int) -> List[dict]: 
-    """
-    Step 2: 
-        Fetch individual stories -> filter by recency. 
 
-    handles: 
-        null responses, deleted stories, non-story items gracefully.
-    """
-    logger.info(f"Fetching details for {len(story_ids)} stories...")
-    recent_stories = []
+def fetch_recent_stories(story_ids: List[int], days_back: int) -> List[dict[str, Any]]:
+    """Fetch individual stories and keep only recent story items."""
+    if not isinstance(story_ids, list):
+        raise ValueError("story_ids must be a list")
+    validate_inputs(days_back)
 
-    for i, story_id in enumerate(story_ids): 
+    logger.info("Fetching details for %s stories...", len(story_ids))
+    recent_stories: List[dict[str, Any]] = []
 
-        try: 
-            url = f"https://hacker-news.firebaseio.com/v0/item/{story_id}.json"
-            response = requests.get(url, timeout=5)
+    for story_position, hn_story_id in enumerate(story_ids):
+        try:
+            response = requests.get(HN_ITEM_URL.format(story_id=hn_story_id), timeout=5)
+            response.raise_for_status()
+            story_data = response.json()
 
-            if response.ok: 
-                story_data = response.json()
+            if not story_data or story_data.get('type') != 'story' or 'time' not in story_data:
+                continue
 
-                # Skip null/deleted/non-story items
-                if (story_data and 
-                    story_data.get('type') == 'story' and 
-                    'time' in story_data): 
+            story_time = pd.Timestamp(story_data['time'], unit='s')
+            story_age_days = (pd.Timestamp.now(tz=story_time.tz) - story_time).days
 
-                    # Filter: only recent posts
-                    story_time = pd.Timestamp(story_data['time'], unit ='s')
-                    days_old = (pd.Timestamp.now() - story_time).days
+            if story_age_days <= days_back:
+                recent_stories.append(story_data)
 
-                    if days_old <= days_back: 
-                        recent_stories.append(story_data)
-
-            # Progress every 50 stories 
-            if i % 50 == 0: 
-                logger.info(f"Processed {i}/{len(story_ids)} stories, "
-                            f"{len(recent_stories)} recent posts found")
-                
-        except requests.RequestException as e: 
-            logger.debug(f"Skip story {story_id}: {e}")
+            if story_position % 50 == 0:
+                logger.info(
+                    "Processed %s/%s stories, %s recent posts found",
+                    story_position,
+                    len(story_ids),
+                    len(recent_stories),
+                )
+        except requests.RequestException:
+            logger.debug("Skipping story_id=%s due to request error", hn_story_id, exc_info=True)
+            continue
+        except (TypeError, ValueError):
+            logger.debug("Skipping story_id=%s due to invalid payload", hn_story_id, exc_info=True)
             continue
 
-    return recent_stories 
-
-def save_warehouse(df: pd.DataFrame) -> None: 
-    """Step 3: 
-            Save cleaned DataFrame -> warehouse (SQLite/Postgres)."""
-    
-    logger.info(f"Saving {len(df)} rows...")
-
-    # ✅ CRITICAL: Convert list columns to JSON strings (SQL caan't store lists)
-    for col in df.columns: 
-        if df[col].dtype == "object": 
-            # Check if column contains lists 
-            if df[col].apply(lambda x: isinstance(x, list)).any():
-                df[col] = df[col].apply(lambda x: str(x) if isinstance(x, list) else x)
+    return recent_stories
 
 
-    engine = get_engine()
+def _serialize_object_columns(df: pd.DataFrame) -> pd.DataFrame:
+    """Convert list/dict columns to strings so SQLite can store them safely."""
+    cleaned_df = df.copy()
+    for column_name in cleaned_df.columns:
+        if cleaned_df[column_name].dtype == "object":
+            if cleaned_df[column_name].apply(lambda value: isinstance(value, (list, dict))).any():
+                cleaned_df[column_name] = cleaned_df[column_name].apply(
+                    lambda value: json.dumps(value) if isinstance(value, (list, dict)) else value
+                )
+    return cleaned_df
 
-    try: 
-        df_clean = to_hn_schema(df)   # HN API -> Production Schema
 
-        # Replace existing table 
-        df_clean.to_sql('hn_posts', 
-                  engine,
-                  if_exists="replace",
-                  index=False)
-        
-        logger.info(f"✅ Warehouse saved: {len(df)} rows")
+def save_warehouse(df: pd.DataFrame, warehouse_path: Path = DEFAULT_WAREHOUSE_PATH) -> None:
+    """Transform and load the DataFrame into the warehouse."""
+    if not isinstance(df, pd.DataFrame):
+        raise ValueError("df must be a pandas DataFrame")
+    if df.empty:
+        raise ValueError("df cannot be empty")
+    if not isinstance(warehouse_path, Path):
+        raise ValueError("warehouse_path must be a Path")
 
-    except Exception as e: 
-        logger.error(f"Warehouse error: {e}")
+    logger.info("Saving %s rows to %s...", len(df), warehouse_path)
+    warehouse_path.parent.mkdir(parents=True, exist_ok=True)
+
+    engine = None
+    try:
+        df_ready = to_hn_schema(_serialize_object_columns(df))
+        engine = get_engine()
+        df_ready.to_sql('hn_posts', engine, if_exists='replace', index=False)
+        logger.info("Warehouse saved: %s rows into hn_posts", len(df_ready))
+    except sqlite3.Error:
+        logger.error("SQLite/warehouse error", exc_info=True)
         raise
+    except ValueError:
+        logger.error("Schema/validation error", exc_info=True)
+        raise
+    finally:
+        if engine is not None:
+            engine.dispose()
 
-    finally: 
-        engine.dispose()
 
 def main(days_back: int = 30) -> None:
-    """Production HN ETL Pipeline orchestrator."""
-
-    try: 
-        # Input validation 
+    """Run the full HN ETL pipeline."""
+    try:
         validate_inputs(days_back)
+        logger.info("Starting HN Top Stories ETL Pipeline (db=%s)", get_db_url())
 
-        # Ensure output dirctory exists
-        warehouse_path = Path('/app/data/hn_posts.db')
-        warehouse_path.parent.mkdir(parents=True, exist_ok=True)
-
-        # ETL Pipeline: Extract -> Transform -> Load 
-        logger.info("Starting HN Top Stories ETL Pipeline...")
-
-        # Step 1: Get top story IDs 
         story_ids = fetch_top_story_ids(max_stories=500)
-
-        # Step 2: Fetch + filter recent stories
         recent_stories = fetch_recent_stories(story_ids, days_back)
 
-        # Step 3: Create DataFrame -> SQLite warehouse
-        if recent_stories: 
-            df = pd.DataFrame(recent_stories)
-            save_warehouse(df, warehouse_path)
-            logger.info(f"✅ ETL COMPLETE: {len(df)} recent posts -> SQLite")
-
-        else: 
+        if not recent_stories:
             logger.warning("No recent stories found")
+            sys.exit(0)
 
+        df = pd.DataFrame(recent_stories)
+        save_warehouse(df, DEFAULT_WAREHOUSE_PATH)
+        logger.info("ETL COMPLETE: %s recent posts -> SQLite", len(df))
         sys.exit(0)
-
-    except (ValueError, 
-            requests.RequestException, 
-            sqlite3.Error) as e:
-        logger.error(f"❌ ETL Pipeline failed: {e}")
+    except (ValueError, requests.RequestException, sqlite3.Error):
+        logger.error("ETL Pipeline failed", exc_info=True)
         sys.exit(1)
 
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="HN Top Stories ETL: API -> SQLite Warehouse (Day 24)"
-    )
-    
-    parser.add_argument(
-        '--days-back', 
-        type=int, 
-        default=30, 
-        help="Days of recent posts to keep (1-365)"
-    )
 
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="HN Top Stories ETL: API -> SQLite Warehouse")
+    parser.add_argument('--days-back', type=int, default=30, help="Days of recent posts to keep (1-365)")
     args = parser.parse_args()
     main(args.days_back)

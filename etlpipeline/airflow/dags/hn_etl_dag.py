@@ -41,7 +41,7 @@ from airflow import DAG
 from airflow.exceptions import AirflowException, AirflowSkipException 
 from airflow.operators.python import PythonOperator
 
-from etl.db_config import get_db_url 
+from etlpipeline.config.db_config import get_db_url 
 from etl.etl_runner import main as run_etl
 
 logger = logging.getLogger(__name__)
