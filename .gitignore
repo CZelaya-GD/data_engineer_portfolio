@@ -1,0 +1,8 @@
+google-cloud-sdk/
+gsutil/
+.venv/
+venv/
+lib/
+site-packages/
+EOF
+.env
